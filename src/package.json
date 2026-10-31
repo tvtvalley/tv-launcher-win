@@ -31,6 +31,13 @@
       "category": "Game",
       "icon": "assets/icon.png"
     },
+    "mac": {
+      "target": [
+        "dir"
+      ],
+      "category": "public.app-category.games",
+      "icon": "assets/icon.icns"
+    },
     "win": {
       "target": [
         "portable"

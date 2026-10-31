@@ -6,6 +6,7 @@ Electron launcher for Toon Valley. One branch per platform:
 | --- | --- |
 | `windows` | Windows, starts the Windows client directly |
 | `linux` | Linux, runs the same Windows client through Wine (`src/src/main/wine.js`) |
+| `mac` | this branch: macOS, runs the same Windows client through Wine (`src/src/main/wine.js`) |
 
 ```
 src/      the Electron app (src/main, src/preload, src/renderer, config, assets)
@@ -23,7 +24,7 @@ Windows build. Do not bump it without testing both.
 ```sh
 cd src
 npm ci
-npx electron-builder --linux     # this branch: dist/linux-unpacked + AppImage
+npx electron-builder --mac       # this branch: dist/mac (Toon Valley Launcher.app)
 ```
 
 `config/default.json` carries the server host/port, the login API and the
@@ -44,17 +45,16 @@ So built launcher files are committed to this branch under `release/`, and the
 manifest entry points straight at the raw file:
 
 ```sh
-python tools/make_launcher_release.py dist/linux-unpacked/resources/app.asar
+python tools/make_launcher_release.py "dist/mac/Toon Valley Launcher.app/Contents/Resources/app.asar"
 # -> release/app.asar (committed)
-# -> prints: --extra "Launcher/resources/app.asar.next|release/app.asar|https://raw.githubusercontent.com/tvtvalley/tv-launcher-win/linux/release/app.asar"
+# -> prints: --extra "Launcher/resources/app.asar.next|release/app.asar|https://raw.githubusercontent.com/tvtvalley/tv-launcher-win/mac/release/app.asar"
 ```
 
-The Linux launcher itself is too big for the branch (275 MB unpacked), so its
-installer is a release asset while the UI updates through `release/app.asar`:
+The macOS launcher itself is too big for the branch, so its installer is a release asset while the UI updates through `release/app.asar`:
 
 ```sh
-python tools/bundle_linux_release.py ../../launcher_linux/dist/linux-unpacked
-# -> dist/release/toon-valley-launcher-<version>-linux-x86_64.tar.gz (~119 MiB)
+python tools/bundle_mac_release.py dist/mac
+# -> dist/release/toon-valley-launcher-<version>-mac.tar.gz
 ```
 
 Attach that archive to the GitHub release; it needs no manifest entry.
@@ -71,12 +71,12 @@ Add that `--extra` when the game manifest is built (server side, key required):
 ```sh
 python build_manifest.py --src "/path/Toon Valley" --key /secure/manifest.key \
     --base https://raw.githubusercontent.com/tvtvalley/toon-valley-win/main \
-    --extra "Launcher/resources/app.asar.next|release/app.asar|https://raw.githubusercontent.com/tvtvalley/tv-launcher-win/linux/release/app.asar" \
+    --extra "Launcher/resources/app.asar.next|release/app.asar|https://raw.githubusercontent.com/tvtvalley/tv-launcher-win/mac/release/app.asar" \
     -o dl/manifest.json --version 1.0.0
 ```
 
 | what | pulled from |
 | --- | --- |
 | game files (`bin/`, `phase_*.mf`, `ToonValley.exe`, ...) | `https://raw.githubusercontent.com/tvtvalley/toon-valley-win/<branch>` |
-| launcher UI (`app.asar.next`) | `https://raw.githubusercontent.com/tvtvalley/tv-launcher-win/linux/release/app.asar` |
-| launcher exe (`Launcher.exe`) | `https://raw.githubusercontent.com/tvtvalley/tv-launcher-win/linux/release/Launcher.exe` |
+| launcher UI (`app.asar.next`) | `https://raw.githubusercontent.com/tvtvalley/tv-launcher-win/mac/release/app.asar` |
+| launcher exe (`Launcher.exe`) | `https://raw.githubusercontent.com/tvtvalley/tv-launcher-win/mac/release/Launcher.exe` |

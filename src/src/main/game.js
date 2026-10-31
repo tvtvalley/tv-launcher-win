@@ -54,6 +54,11 @@ function defaultGameDir({ packaged, appPath, execPath, resourcesPath, platform =
   if (!packaged) return path.resolve(appPath, '..');
   const exeDir = path.dirname(execPath);
   const candidates = [exeDir, path.dirname(exeDir), path.resolve(exeDir, '..', '..')];
+  if (platform === 'darwin') {
+    candidates.push(path.resolve(exeDir, '..', '..', '..'));
+    candidates.push(path.join(os.homedir(), 'Library', 'Application Support', 'Toon Valley'));
+    candidates.push(path.join(os.homedir(), 'Games', 'Toon Valley'));
+  }
   if (resourcesPath) candidates.unshift(path.join(resourcesPath, 'game'));
   // a game installed inside a Wine/Proton prefix (the usual Linux case)
   try {
@@ -187,6 +192,11 @@ function buildLaunch({ gameDir, program, python, host, port, playToken, gameVers
   let env = { ...baseEnv, GAME_SERVER: `${host}:${port}`, LOGIN_TOKEN: playToken, LOGIN_TOKEN_PIPE: '1', PYTHONUNBUFFERED: '1' };
   if (wine && wine.prefix) {
     env = { ...env, WINEPREFIX: wine.prefix, WINEDLLOVERRIDES: wine.dllOverrides, WINEDEBUG: '-all' };
+    if (process.platform === 'darwin') {
+      env.WINEMAC_NO_FLICKER = '1';
+      env.WINEMSYNC = '1';
+      env.WINEMETALGL = '1';
+    }
   }
   if (gameVersion) env.GAME_VERSION = gameVersion;
   else delete env.GAME_VERSION;

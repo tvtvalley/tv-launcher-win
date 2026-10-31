@@ -45,11 +45,11 @@ function finishOnExit(resourcesPath, log = () => {}) {
   const old = path.join(resourcesPath, OLD);
 
   if (process.platform !== 'win32') {
-    try {
-      fs.renameSync(target, old);
-    } catch {}
-    fs.renameSync(next, target);
-    return true;
+    // Non-Windows platforms (macOS/Linux) run native builds.
+    // The server update manifest delivers a Windows app.asar.next, which must NEVER
+    // overwrite the native app bundle! Clean it up if staged here.
+    try { fs.unlinkSync(next); } catch {}
+    return false;
   }
 
   const script = path.join(os.tmpdir(), `tv-asar-swap-${process.pid}.cmd`);

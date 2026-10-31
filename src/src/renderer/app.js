@@ -505,7 +505,9 @@ function formatPlayTime(ms) {
 let sessionStart = null;
 
 function handleGameEvent(event) {
-  if (event.type === 'started') {
+  if (event.type === 'starting') {
+    setProgress('busy', event.detail || 'Starting…');
+  } else if (event.type === 'started') {
     setProgress('busy', 'Loading the game…');
     window.scene.sound('bell', 0.4);
   } else if (event.type === 'running') {
@@ -711,7 +713,9 @@ function fillRuntimeSettings() {
   $('reset-game-folder').hidden = !settings.gameDir;
   $('wine-settings').hidden = !asksForWine;
   if (!asksForWine) return;
-  $('wine-help').textContent = settings.winePath || 'Automatic: system Wine, then Steam Proton, then a downloaded runner.';
+  $('wine-help').textContent = settings.winePath || (settings.platform === 'darwin'
+    ? 'Automatic: system Wine, then installed Wine apps, then a downloaded runner.'
+    : 'Automatic: system Wine, then Steam Proton, then a downloaded runner.');
   $('reset-wine').hidden = !settings.winePath;
   $('wine-prefix-help').textContent = settings.winePrefix || "Automatic: the prefix the game is installed in, else the launcher's own.";
   $('reset-wine-prefix').hidden = !settings.winePrefix;

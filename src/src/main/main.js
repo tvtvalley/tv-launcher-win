@@ -452,11 +452,26 @@ function registerIpc() {
       game.hideCodeFolders(gameDir);
       const settings = config.get();
       const program = game.findGameProgram(gameDir, settings.pythonPath);
-      // a Windows client on Linux: pick a runner and make the prefix first
+      // a Windows client on Linux/macOS: pick a runner and make the prefix first
       let wineLaunch = null;
       if (program.wine) {
         try {
-          const runner = wine.findWine({ settings, dataDir: app.getPath('userData') });
+          let runner;
+          try {
+            runner = wine.findWine({ settings, dataDir: app.getPath('userData') });
+          } catch (err) {
+            if (err.code === 'wine-missing' && process.platform === 'darwin') {
+              send('game:event', { type: 'starting', detail: 'Downloading Wine runner' });
+              runner = await wine.downloadRunner({
+                dataDir: app.getPath('userData'),
+                url: config.get().wineRunnerMacUrl,
+                log: (text) => send('patcher:log', { text }),
+                progress: (pct) => send('game:event', { type: 'starting', detail: `Downloading Wine (${pct}%)` }),
+              });
+            } else {
+              throw err;
+            }
+          }
           const prefix = wine.resolvePrefix({
             settings,
             userDataDir: app.getPath('userData'),
@@ -468,9 +483,11 @@ function registerIpc() {
           // one has to be made, which is slow, so say so while it happens.
           if (!wine.prefixReady(prefix.dir)) {
             send('game:event', { type: 'starting', detail: 'Setting up Wine' });
-            await wine.ensurePrefix(prefix.dir, runner, { log: (text) => send('patcher:log', { text }) });
+            await wine.ensurePrefix(prefix.dir, runner, { dataDir: app.getPath('userData'), log: (text) => send('patcher:log', { text }) });
+          } else if (process.platform === 'darwin') {
+            await wine.ensureWineMetalGL(prefix.dir, runner, { dataDir: app.getPath('userData'), log: (text) => send('patcher:log', { text }) });
           }
-          wineLaunch = { command: runner.command, prefix: prefix.dir, dllOverrides: wine.WINE_DLL_OVERRIDES };
+          wineLaunch = { command: runner.command, prefix: prefix.dir, dllOverrides: wine.wineDllOverrides() };
         } catch (err) {
           return { ok: false, code: err.code || 'wine-missing', message: err.message };
         }
@@ -630,6 +647,23 @@ app.whenReady().then(() => {
 // the patcher can only write there; move it across and swap it too.
 function finishAsarSwap(log) {
   const swap = require('./asarSwap');
+  // On non-Windows platforms (macOS / Linux), the game manifest from the server
+  // ships a Windows launcher app.asar. Never allow it to overwrite the native launcher!
+  if (process.platform !== 'win32') {
+    try {
+      const staged = swap.pendingPath(path.join(getGameDir(), 'Launcher', 'resources'));
+      if (fs.existsSync(staged)) fs.unlinkSync(staged);
+    } catch {}
+    try {
+      const local = swap.pendingPath(process.resourcesPath);
+      if (fs.existsSync(local)) fs.unlinkSync(local);
+    } catch {}
+    try {
+      const old = path.join(process.resourcesPath, 'app.asar.old');
+      if (fs.existsSync(old)) fs.unlinkSync(old);
+    } catch {}
+    return false;
+  }
   try {
     if (swap.finishOnExit(process.resourcesPath, log)) return true;
   } catch (err) {

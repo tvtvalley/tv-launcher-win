@@ -60,15 +60,23 @@ def sha256(path):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('built', help='win-unpacked or linux-unpacked')
+    parser.add_argument('built', help='win-unpacked, linux-unpacked, or mac')
     parser.add_argument('--branch', default=None, help='expected branch in the URLs')
     parser.add_argument('--entries', default='release/launcher-entries.json')
-    parser.add_argument('--platform', choices=('win', 'linux'), default=None,
+    parser.add_argument('--platform', choices=('win', 'linux', 'mac'), default=None,
                         help='default: guessed from the folder name')
     args = parser.parse_args()
 
-    platform = args.platform or ('win' if 'win' in os.path.basename(args.built) else 'linux')
+    platform = args.platform or ('win' if 'win' in os.path.basename(args.built) else ('mac' if 'mac' in os.path.basename(args.built) else 'linux'))
     asar_path = os.path.join(args.built, 'resources', 'app.asar')
+    if not os.path.isfile(asar_path):
+        for cand in (
+            os.path.join(args.built, 'Toon Valley Launcher.app', 'Contents', 'Resources', 'app.asar'),
+            os.path.join(args.built, 'Contents', 'Resources', 'app.asar'),
+        ):
+            if os.path.isfile(cand):
+                asar_path = cand
+                break
     check('app.asar exists', os.path.isfile(asar_path), asar_path)
     if failures:
         return 1
@@ -102,8 +110,21 @@ def main():
     check('asar swap pulls from the game folder too', 'finishAsarSwap' in main_js)
     # electron-builder strips the build block from the packaged package.json,
     # so read the Electron version out of the binary itself
-    binary = os.path.join(args.built, 'Toon Valley Launcher.exe'
-                          if platform == 'win' else 'toon-valley-launcher')
+    if platform == 'win':
+        binary = os.path.join(args.built, 'Toon Valley Launcher.exe')
+    elif platform == 'mac':
+        # On macOS the Electron version string is in Electron Framework
+        framework = os.path.join(args.built, 'Toon Valley Launcher.app', 'Contents', 'Frameworks',
+                                 'Electron Framework.framework', 'Electron Framework')
+        if not os.path.isfile(framework):
+            framework = os.path.join(args.built, 'Contents', 'Frameworks',
+                                     'Electron Framework.framework', 'Electron Framework')
+        binary = framework if os.path.isfile(framework) else os.path.join(
+            args.built, 'Toon Valley Launcher.app', 'Contents', 'MacOS', 'Toon Valley Launcher')
+        if not os.path.isfile(binary):
+            binary = os.path.join(args.built, 'Contents', 'MacOS', 'Toon Valley Launcher')
+    else:
+        binary = os.path.join(args.built, 'toon-valley-launcher')
     marker = '?'
     if os.path.isfile(binary):
         with open(binary, 'rb') as handle:

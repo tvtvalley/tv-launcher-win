@@ -201,6 +201,9 @@ class Patcher extends EventEmitter {
       throw err;
     }
     manifest.url = url;
+    if (process.platform !== 'win32' && Array.isArray(manifest.files)) {
+      manifest.files = manifest.files.filter((entry) => !entry.path.replace(/\\/g, '/').toLowerCase().endsWith('launcher/resources/app.asar.next'));
+    }
     return manifest;
   }
 
